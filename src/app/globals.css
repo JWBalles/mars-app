@@ -24,3 +24,43 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.container {
+  min-height: 100vh;        /* Full screen height */
+  display: flex;
+  justify-content: center;  /* Center horizontally */
+  align-items: center;      /* Center vertically */
+  background: #fafafa;
+}
+
+.dashboard {
+  background: #1e293b;
+  padding: 30px;
+  border-radius: 12px;
+  width: 250px;
+  text-align: center;
+  box-shadow: 0 10px 10px rgba(0, 0, 0, 0.4);
+}
+
+.grid {
+  display: flex;
+  flex-direction: column;   /* stack vertically */
+  gap: 10px;
+  margin-top: 10px;
+  align-items: center;      /* center horizontally */
+}
+
+.btn {
+  width: 200px; 
+  padding: 15px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.btn:hover {
+  background: #1d4ed8;
+}
