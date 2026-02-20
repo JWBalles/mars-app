@@ -15,11 +15,7 @@ export default function ClientDashBoard() {
         <Link href="/talk_to_us">
           <button className="btn">Talk to Us</button>
         </Link>
-
-       <Link href="/check_request_status">
-          <button className="btn">Check Request Status</button>
-        </Link>
-
+        
         <Link href="/ratings">
           <button className="btn">Ratings</button>
         </Link>

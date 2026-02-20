@@ -1,7 +1,7 @@
 
 import Link from "next/link";
 
-export default function Dashboard() {
+export default function OwnerDashBoard() {
   return (
     <div className="container">
       <div className="dashboard">
@@ -16,8 +16,8 @@ export default function Dashboard() {
           <button className="btn">Customers</button>
         </Link>
 
-       <Link href="/repair_history">
-          <button className="btn">Repair History</button>
+       <Link href="/vehicle_repair_status_list">
+          <button className="btn">Vehicle Repair Status List </button>
         </Link>
 
         <Link href="/ratings">
