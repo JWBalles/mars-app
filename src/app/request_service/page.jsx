@@ -10,14 +10,27 @@ export default function RequestService() {
 
   const [vehicleType, setVehicleType] = useState("");
   const [issue, setIssue] = useState("");
+  const [municipality, setMunicipality] = useState("");
+  const [barangay, setBarangay] = useState("");
   const [location, setLocation] = useState("");
   const [pickup, setPickup] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // Batanes municipalities
+  const municipalities = ["Basco", "Itbayat", "Mahatao", "Sabtang", "Uyugan"];
+
+  // Barangays per municipality
+  const barangaysByMunicipality = {
+    Basco: ["Kaychanarian", "San Antonio", "Centro Norte"],
+    Itbayat: ["Maysanga", "Chavayan", "Ibabao"],
+    Mahatao: ["San Vicente", "Siyang"],
+    Sabtang: ["Savidug", "Chavayan"],
+    Uyugan: ["Kayuganan", "Poblacion"]
+  };
+
   useEffect(() => {
-    // Get current logged-in session
     const getSession = async () => {
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
@@ -30,7 +43,6 @@ export default function RequestService() {
     getSession();
   }, []);
 
-  // Upload image to Supabase Storage
   const handleImageUpload = async (file) => {
     if (!file) return null;
     const fileName = `${Date.now()}_${file.name}`;
@@ -42,9 +54,11 @@ export default function RequestService() {
       setError("Failed to upload image: " + error.message);
       return null;
     }
+
     const { publicUrl } = supabase.storage
       .from("service-images")
       .getPublicUrl(fileName);
+
     return publicUrl;
   };
 
@@ -53,21 +67,12 @@ export default function RequestService() {
     setError("");
     setSuccess("");
 
-    if (!vehicleType || !issue || !location) {
+    if (!vehicleType || !issue || !municipality || !barangay || !location) {
       setError("Please fill in all required fields.");
       return;
     }
 
-    // ------------------------------
-    // FEATURE: Must be logged in first
-    // Currently optional. Uncomment to enforce login.
-    // if (!session) {
-    //   setError("You must be logged in to request service.");
-    //   return;
-    // }
-    // ------------------------------
-
-    // Upload image if present
+    // Upload image
     let imageUrl = null;
     if (imageFile) {
       imageUrl = await handleImageUpload(imageFile);
@@ -76,23 +81,27 @@ export default function RequestService() {
 
     const { data, error } = await supabase.from("service_requests").insert([
       {
-        user_id: session?.user.id || null, // optional if login not enforced
+        user_id: session?.user.id || null,
         vehicle_type: vehicleType,
         issue,
+        municipality,
+        barangay,
         location,
         pickup,
         image_url: imageUrl,
         status: "pending",
-      },
+      }
     ]);
 
-    if (error) {
-      setError("Failed to submit request: " + error.message);
-    } else {
+    if (error) setError("Failed to submit request: " + error.message);
+    else {
       setSuccess("Service request submitted successfully!");
       // Reset form
       setVehicleType("");
       setIssue("");
+      setMunicipality("");
+      setBarangay("");
+      setLocation("");
       setPickup(false);
       setImageFile(null);
     }
@@ -101,9 +110,8 @@ export default function RequestService() {
   return (
     <div style={{ maxWidth: "500px", margin: "20px auto", padding: "10px" }}>
       <h1>Request Service</h1>
-
-      {error && <p>{error}</p>}
-      {success && <p>{success}</p>}
+      {error && <p style={{ color: "red" }}>{error}</p>}
+      {success && <p style={{ color: "green" }}>{success}</p>}
 
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
         {/* Vehicle Type */}
@@ -125,8 +133,36 @@ export default function RequestService() {
           placeholder="Describe the issue..."
         />
 
+        {/* Municipality */}
+        <label>Municipality*</label>
+        <select
+          value={municipality}
+          onChange={(e) => {
+            setMunicipality(e.target.value);
+            setBarangay(""); // reset barangay
+          }}
+        >
+          <option value="">Select municipality</option>
+          {municipalities.map((m) => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
+
+        {/* Barangay (required) */}
+        {municipality && (
+          <div>
+            <label>Barangay*</label>
+            <select value={barangay} onChange={(e) => setBarangay(e.target.value)}>
+              <option value="">Select barangay</option>
+              {(barangaysByMunicipality[municipality] || []).map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Location */}
-        <label>Location*</label>
+        <label>Location / Address*</label>
         <input
           type="text"
           value={location}
@@ -134,22 +170,24 @@ export default function RequestService() {
           placeholder="Your address or nearest landmark"
         />
 
-        {/* Pickup */}
-        <label>
-          <input
-            type="checkbox"
-            checked={pickup}
-            onChange={(e) => setPickup(e.target.checked)}
-          />
-          Pickup required?
-        </label>
+        {/* Pickup (only Batan Island municipalities) */}
+        {(municipality === "Basco" || municipality === "Mahatao" || municipality === "Ivana" || municipality === "Uyugan") && (
+          <label>
+            <input
+              type="checkbox"
+              checked={pickup}
+              onChange={(e) => setPickup(e.target.checked)}
+            />
+            Pickup required? (Additional charges may apply)
+          </label>
+        )}
 
-        {/* Image Upload / Camera */}
+        {/* Image Upload */}
         <label>Attach Image (optional)</label>
         <input
           type="file"
           accept="image/*"
-          capture="environment" // opens camera on mobile
+          capture="environment"
           onChange={(e) => setImageFile(e.target.files[0])}
         />
 

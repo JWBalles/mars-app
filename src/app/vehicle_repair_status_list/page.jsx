@@ -6,10 +6,9 @@ import { supabase } from "@/lib/supabaseClient";
 export default function RepairStatusList() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState("created_at");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [paidFilter, setPaidFilter] = useState("All");
 
-  // Fetch repair requests with related foreign keys
   const fetchRequests = async () => {
     setLoading(true);
 
@@ -17,23 +16,20 @@ export default function RepairStatusList() {
       .from("service_requests")
       .select(`
         id,
-        vehicle_type_id (name),
-        issue_id (description),
+        vehicle_type,
+        issue,
         location,
-        pickup,
         status,
-        image_url,
         paid,
-        created_at
-      `);
+        created_at,
+        municipality,
+        barangay,
+        profiles ( name )
+      `)
+      .order("created_at", { ascending: false });
 
-    if (search) {
-      query = query.or(
-        `vehicle_type_id.name.ilike.%${search}%,issue_id.description.ilike.%${search}%,location.ilike.%${search}%`
-      );
-    }
-
-    query = query.order(sortBy, { ascending: false });
+    if (statusFilter !== "All") query = query.eq("status", statusFilter);
+    if (paidFilter !== "All") query = query.eq("paid", paidFilter === "Paid");
 
     const { data, error } = await query;
     if (error) console.error(error.message);
@@ -44,91 +40,155 @@ export default function RepairStatusList() {
 
   useEffect(() => {
     fetchRequests();
-  }, [search, sortBy]);
+  }, [statusFilter, paidFilter]);
 
-  // Toggle paid status
-  const togglePaid = async (id, currentPaid) => {
+  const getNextStatus = (currentStatus) => {
+    if (currentStatus === "Pending") return "Processing";
+    if (currentStatus === "Processing") return "Finished";
+    return currentStatus;
+  };
+
+  const getStatusColor = (status) => {
+    if (status === "Pending") return "#ffc107";
+    if (status === "Processing") return "#17a2b8";
+    if (status === "Finished") return "#28a745";
+    return "#6c757d";
+  };
+
+  const toggleStatus = async (id, currentStatus) => {
+    if (!currentStatus) currentStatus = "Pending";
+    if (currentStatus === "Finished") return;
+
+    const nextStatus = getNextStatus(currentStatus);
+
+    if (nextStatus === "Finished") {
+      const confirmFinish = window.confirm(
+        "Are you sure you want to mark this as Finished?"
+      );
+      if (!confirmFinish) return;
+    }
+
     const { error } = await supabase
       .from("service_requests")
-      .update({ paid: !currentPaid }) // just toggle boolean
+      .update({ status: nextStatus })
       .eq("id", id);
 
     if (error) console.error(error.message);
-    else fetchRequests(); // refresh list
+    else
+      setRequests((prev) =>
+        prev.map((req) =>
+          req.id === id ? { ...req, status: nextStatus } : req
+        )
+      );
+  };
+
+  const togglePaid = async (id, currentPaid) => {
+    const { error } = await supabase
+      .from("service_requests")
+      .update({ paid: !currentPaid })
+      .eq("id", id);
+
+    if (error) console.error(error.message);
+    else
+      setRequests((prev) =>
+        prev.map((req) =>
+          req.id === id ? { ...req, paid: !currentPaid } : req
+        )
+      );
   };
 
   return (
-    <div style={{ maxWidth: "900px", margin: "20px auto", padding: "10px" }}>
+    <div style={{ maxWidth: "1200px", margin: "20px auto" }}>
       <h1>Vehicle Repair Status List</h1>
 
-      {/* Search & Sort */}
-      <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
-        <input
-          type="text"
-          placeholder="Search by vehicle, issue, or location"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: 1 }}
-        />
-        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-          <option value="created_at">Sort by Date</option>
-          <option value="status">Sort by Status</option>
-        </select>
+      {/* FILTERS */}
+      <div style={{ display: "flex", gap: "20px", marginBottom: "15px" }}>
+        <div>
+          <label>Status: </label>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option>All</option>
+            <option>Pending</option>
+            <option>Processing</option>
+            <option>Finished</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Payment: </label>
+          <select value={paidFilter} onChange={(e) => setPaidFilter(e.target.value)}>
+            <option>All</option>
+            <option>Paid</option>
+            <option>Unpaid</option>
+          </select>
+        </div>
       </div>
 
       {loading ? (
         <p>Loading...</p>
-      ) : requests.length === 0 ? (
-        <p>No repair requests found.</p>
       ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
           <thead>
             <tr>
               <th>ID</th>
-              <th>Vehicle Type</th>
-              <th>Issue</th>
+              <th>Client</th>
+              <th>Vehicle</th>
+              <th>Issue / Description</th>
               <th>Location</th>
-              <th>Pickup</th>
+              <th>Municipality</th>
+              <th>Barangay</th>
               <th>Status</th>
-              <th>Image</th>
               <th>Paid</th>
-              <th>Created At</th>
+              <th>Date</th>
             </tr>
           </thead>
           <tbody>
             {requests.map((req) => (
-              <tr key={req.id} style={{ borderBottom: "1px solid #ccc" }}>
+              <tr key={req.id} style={{ borderBottom: "1px solid #ddd" }}>
                 <td>{req.id}</td>
-                <td>{req.vehicle_type_id?.name || "N/A"}</td>
-                <td>{req.issue_id?.description || "N/A"}</td>
-                <td>{req.location}</td>
-                <td>{req.pickup ? "Yes" : "No"}</td>
-                <td>{req.status}</td>
-                <td>
-                  {req.image_url ? (
-                    <a href={req.image_url} target="_blank" rel="noreferrer">
-                      View
-                    </a>
-                  ) : (
-                    "No Image"
-                  )}
-                </td>
-                {/* Paid toggle button */}
+                <td>{req.profiles?.name || "Unknown"}</td>
+                <td>{req.vehicle_type || "Unknown"}</td>
+                <td>{req.issue || "No description"}</td>
+                <td>{req.location || "No location"}</td>
+                <td>{req.municipality || "Unknown"}</td>
+                <td>{req.barangay || "Unknown"}</td>
+
+                {/* STATUS BUTTON */}
                 <td>
                   <button
+                    onClick={() => toggleStatus(req.id, req.status || "Pending")}
+                    disabled={req.status === "Finished"}
                     style={{
-                      backgroundColor: req.paid ? "green" : "red",
+                      backgroundColor: getStatusColor(req.status || "Pending"),
                       color: "white",
-                      padding: "4px 8px",
+                      padding: "6px 12px",
                       border: "none",
-                      borderRadius: "4px",
+                      borderRadius: "6px",
+                      cursor: req.status === "Finished" ? "not-allowed" : "pointer",
+                      opacity: req.status === "Finished" ? 0.7 : 1,
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {req.status || "Pending"}
+                  </button>
+                </td>
+
+                {/* PAID BUTTON */}
+                <td>
+                  <button
+                    onClick={() => togglePaid(req.id, req.paid)}
+                    style={{
+                      backgroundColor: req.paid ? "#28a745" : "#dc3545",
+                      color: "white",
+                      padding: "6px 10px",
+                      border: "none",
+                      borderRadius: "6px",
                       cursor: "pointer",
                     }}
-                    onClick={() => togglePaid(req.id, req.paid)}
                   >
                     {req.paid ? "Paid" : "Unpaid"}
                   </button>
                 </td>
+
                 <td>{new Date(req.created_at).toLocaleString()}</td>
               </tr>
             ))}
