@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function ClientDashBoard() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [showNamePopup, setShowNamePopup] = useState(false);
   const [userId, setUserId] = useState(null);
@@ -18,7 +20,6 @@ export default function ClientDashBoard() {
 
       setUserId(user.id);
 
-      // Ensure profile exists (minimal profile)
       const { data: profile } = await supabase
         .from("profiles")
         .select("name")
@@ -26,7 +27,6 @@ export default function ClientDashBoard() {
         .single();
 
       if (!profile) {
-        // create minimal profile
         await supabase.from("profiles").upsert({
           id: user.id,
           role: "client",
@@ -68,6 +68,9 @@ export default function ClientDashBoard() {
         </Link>
         <Link href="/ratings">
           <button style={btnStyle}>Ratings</button>
+        </Link>
+        <Link href="/logout">
+          <button style={{ ...btnStyle, background: "#dc3545" }}>Logout</button>
         </Link>
       </div>
 

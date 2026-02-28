@@ -24,6 +24,8 @@ export default function RepairStatusList() {
         created_at,
         municipality,
         barangay,
+        service_type,
+        image_url,
         profiles ( name )
       `)
       .order("created_at", { ascending: false });
@@ -97,8 +99,23 @@ export default function RepairStatusList() {
       );
   };
 
+  const deleteRequest = async (id) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this service request?"
+    );
+    if (!confirmDelete) return;
+
+    const { error } = await supabase
+      .from("service_requests")
+      .delete()
+      .eq("id", id);
+
+    if (error) console.error(error.message);
+    else setRequests((prev) => prev.filter((req) => req.id !== id));
+  };
+
   return (
-    <div style={{ maxWidth: "1200px", margin: "20px auto" }}>
+    <div style={{ maxWidth: "1400px", margin: "20px auto" }}>
       <h1>Vehicle Repair Status List</h1>
 
       {/* FILTERS */}
@@ -136,9 +153,12 @@ export default function RepairStatusList() {
               <th>Location</th>
               <th>Municipality</th>
               <th>Barangay</th>
+              <th>Service Type</th>
+              <th>Image</th>
               <th>Status</th>
               <th>Paid</th>
               <th>Date</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -151,6 +171,22 @@ export default function RepairStatusList() {
                 <td>{req.location || "No location"}</td>
                 <td>{req.municipality || "Unknown"}</td>
                 <td>{req.barangay || "Unknown"}</td>
+                <td>{req.service_type || "Unknown"}</td>
+
+                {/* IMAGE COLUMN */}
+                <td>
+                  {req.image_url ? (
+                    <a href={req.image_url} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={req.image_url}
+                        alt="Service"
+                        style={{ width: "60px", height: "60px", objectFit: "cover", borderRadius: "4px" }}
+                      />
+                    </a>
+                  ) : (
+                    "No image"
+                  )}
+                </td>
 
                 {/* STATUS BUTTON */}
                 <td>
@@ -190,6 +226,23 @@ export default function RepairStatusList() {
                 </td>
 
                 <td>{new Date(req.created_at).toLocaleString()}</td>
+
+                {/* DELETE BUTTON */}
+                <td>
+                  <button
+                    onClick={() => deleteRequest(req.id)}
+                    style={{
+                      backgroundColor: "#dc3545",
+                      color: "white",
+                      padding: "6px 10px",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Delete
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

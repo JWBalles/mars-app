@@ -9,58 +9,45 @@ export default function OAuthCallback() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const handleOAuthRedirect = async () => {
-      try {
-        // Listen for auth state changes
-        supabase.auth.onAuthStateChange(async (event, session) => {
-          if (!session?.user) {
-            setError("No user session found.");
-            return;
-          }
+  const handleOAuthRedirect = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
 
-          const userId = session.user.id;
+    if (!user) {
+      setError("No user session found.");
+      return;
+    }
 
-          // Check if profile exists
-          const { data: profile, error: profileError } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", userId)
-            .single();
+    const userId = user.id;
 
-          if (profileError && profileError.code !== "PGRST116") {
-            console.error("Profile fetch error:", profileError.message);
-            setError("Unable to fetch user profile.");
-            return;
-          }
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .single();
 
-          // Create profile if missing
-          if (!profile) {
-            const { error: insertError } = await supabase.from("profiles").insert({
-              id: userId,
-              role: "client",
-            });
-            if (insertError) {
-              console.error("Profile creation error:", insertError.message);
-              setError("Unable to create user profile.");
-              return;
-            }
-            router.push("/client_db");
-            return;
-          }
+    if (profileError && profileError.code !== "PGRST116") {
+      setError("Unable to fetch user profile.");
+      return;
+    }
 
-          // Redirect based on role
-          if (profile.role === "owner") router.push("/owner_db");
-          else router.push("/client_db");
-        });
-      } catch (err) {
-        console.error(err);
-        setError("Something went wrong during OAuth redirect.");
-      }
-    };
+    // Create profile if missing
+    if (!profile) {
+      await supabase.from("profiles").insert({
+        id: userId,
+        role: "client",
+      });
 
-    handleOAuthRedirect();
-  }, [router]);
+      router.replace("/client_db");
+      return;
+    }
 
+    // 🔥 Redirect based on role (UPDATED)
+    if (profile.role === "admin") router.replace("/owner_db");
+    else router.replace("/client_db");
+  };
+
+  handleOAuthRedirect();
+}, [router]);
   return (
     <div style={{ maxWidth: "400px", margin: "50px auto", textAlign: "center" }}>
       <h2>Processing login...</h2>
